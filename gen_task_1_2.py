@@ -17,7 +17,8 @@ if __name__ == "__main__":
     file_prefix = f"{user.name}-{user.group}"
     archive_name = f"{workdir}/{file_prefix}-p1_1.zip"
     email_topic = f"{user.university}-{user.group}-{task.no}"
-    crl_distrib_point = f"URI:http://crl.{user.name}.ru:8080/{user.name}-{user.group}.crl"
+    crl_filename = f"{user.name}-{user.group}.crl"
+    crl_distrib_point = f"URI:http://crl.{user.name}.ru:8080/{crl_filename}"
     
     if isdir(workdir): rmtree(workdir)
     mkdir(workdir)
@@ -91,3 +92,6 @@ if __name__ == "__main__":
          "-copy_extensions", "copy",                                                                                                # Copying x509v3 extensions from request to certificate
          "-in", f"{workdir}/{file_prefix}-crl-revoked.csr",                                                                           # Passing request
          "-out", f"{workdir}/{file_prefix}-crl-revoked.crt"])                                                                         # Specifying output path
+
+    # Generating CRL file
+    run(["openssl", "ca", "-gencrl", "-out", crl_filename])
