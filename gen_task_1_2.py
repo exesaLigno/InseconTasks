@@ -19,6 +19,9 @@ if __name__ == "__main__":
     email_topic = f"{user.university}-{user.group}-{task.no}"
     crl_filename = f"{user.name}-{user.group}.crl"
     crl_distrib_point = f"URI:http://crl.{user.name}.ru:8080/{crl_filename}"
+
+    with open("temp.conf", "w") as conf:
+        conf.write(f"crlDistributionPoints={crl_distrib_point}\n")
     
     if isdir(workdir): rmtree(workdir)
     mkdir(workdir)
@@ -94,4 +97,7 @@ if __name__ == "__main__":
          "-out", f"{workdir}/{file_prefix}-crl-revoked.crt"])                                                                         # Specifying output path
 
     # Generating CRL file
-    run(["openssl", "ca", "-gencrl", "-out", crl_filename])
+    run(["openssl", "ca", 
+         "-config", "temp.conf",
+         "-gencrl",
+         "-out", crl_filename])
