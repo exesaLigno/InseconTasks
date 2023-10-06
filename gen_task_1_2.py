@@ -17,6 +17,7 @@ if __name__ == "__main__":
     file_prefix = f"{user.name}-{user.group}"
     archive_name = f"{workdir}/{file_prefix}-p1_1.zip"
     email_topic = f"{user.university}-{user.group}-{task.no}"
+    crl_distrib_point = f"URI:http://crl.{user.name}.ru:8080/{user.name}-{user.group}.crl"
     
     if isdir(workdir): rmtree(workdir)
     mkdir(workdir)
@@ -60,7 +61,7 @@ if __name__ == "__main__":
          "-addext", "keyUsage=critical,digitalSignature",                                                                           # Adding x509v3 extensions
          "-addext", "extendedKeyUsage=critical,serverAuth,clientAuth",                                                              # Adding x509v3 extensions
          "-addext", f"subjectAltName=DNS:crl.valid.{user.name}.ru",                                                                 # Adding Alternative Name
-         "-addext", f"crlDistributionPoints=URI:http://crl.{user.name}.ru",                                                         # Adding CRL Distribution Points
+         "-addext", f"crlDistributionPoints={crl_distrib_point}",                                                                   # Adding CRL Distribution Points
          "-out", f"{workdir}/{file_prefix}-crl-valid.csr"])                                                                         # Setting up output file
     # Generating certificate from request
     run(["openssl", "x509", "-req", "-days", f"{task.basic_time}",
@@ -77,11 +78,11 @@ if __name__ == "__main__":
     run(["openssl", "req", "-new",
          "-key", f"{workdir}/{file_prefix}-crl-revoked.key",                                                                          # Passing RSA key
          "-subj", f"/C=RU/ST=Moscow/L=Moscow/O={user.name}/OU={user.name} P1_2/CN={user.name} CRL Revoked/emailAddress={user.email}", # Setting certificate parameters in format /param1=value1/param2=value2/...
-         "-addext", "basicConstraints=CA:FALSE",                                                                                    # Adding x509v3 extensions
-         "-addext", "keyUsage=critical,digitalSignature",                                                                           # Adding x509v3 extensions
-         "-addext", "extendedKeyUsage=critical,serverAuth,clientAuth",                                                              # Adding x509v3 extensions
+         "-addext", "basicConstraints=CA:FALSE",                                                                                      # Adding x509v3 extensions
+         "-addext", "keyUsage=critical,digitalSignature",                                                                             # Adding x509v3 extensions
+         "-addext", "extendedKeyUsage=critical,serverAuth,clientAuth",                                                                # Adding x509v3 extensions
          "-addext", f"subjectAltName=DNS:crl.revoked.{user.name}.ru",                                                                 # Adding Alternative Name
-         "-addext", f"crlDistributionPoints=URI:http://crl.{user.name}.ru",                                                         # Adding CRL Distribution Points
+         "-addext", f"crlDistributionPoints={crl_distrib_point}",                                                                     # Adding CRL Distribution Points
          "-out", f"{workdir}/{file_prefix}-crl-revoked.csr"])                                                                         # Setting up output file
     # Generating certificate from request
     run(["openssl", "x509", "-req", "-days", f"{task.basic_time}",
