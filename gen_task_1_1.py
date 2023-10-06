@@ -2,9 +2,10 @@
 
 from subprocess import run
 from json import load, loads
-from os import mkdir
+from os import mkdir, walk
 from os.path import isdir
 from shutil import rmtree
+from zipfile import ZipFile
 
 TASK_NO = "p1_1"
 
@@ -43,4 +44,24 @@ if __name__ == "__main__":
          "-in", f"{workdir}/{file_prefix}-intr.csr", 
          "-out", f"{workdir}/{file_prefix}-intr.crt"])
 
+    run(["openssl", "genrsa", "-out", f"{workdir}/{file_prefix}-basic.key", "2048"])
+    run(["openssl", "req", "-new",
+         "-key", f"{workdir}/{file_prefix}-basic.key",
+         "-subj", f"/C=RU/ST=Moscow/L=Moscow/O={config['name']}/OU={config['name']} P1_1/CN={config['name']} Basic/emailAddress={config['email']}",
+         "-addext", "basicConstraints=CA:FALSE",
+         "-addext", "keyUsage=critical,digitalSignature",
+         "-addext", "extendedKeyUsage=critical,serverAuth,clientAuth",
+         "-addext", f"subjectAltName=DNS:basic.{config['name']}.ru,DNS:basic.{config['name']}.com",
+         "-out", f"{workdir}/{file_prefix}-basic.csr"])
+    run(["openssl", "x509", "-req", "-days", f"{90}",
+         "-CA", f"{workdir}/{file_prefix}-intr.crt", "-CAkey", f"{workdir}/{file_prefix}-intr.key", "-passin", f"pass:{config['name']}",
+         #"-CAcreateserial", "-CAserial", f"{workdir}/serial",
+         "-copy_extensions", "copy",
+         "-in", f"{workdir}/{file_prefix}-basic.csr",
+         "-out", f"{workdir}/{file_prefix}-basic.crt"])
     
+    with ZipFile(f"{workdir}/{file_prefix}-p1_1.zip", "w") as archive:
+        for directory, _, files in walk(workdir):
+            for file in files:
+                if file.endswith(".key") or file.endswith(".crt"):
+                    archive.write(f"{directory}/{file}", arcname=file)
