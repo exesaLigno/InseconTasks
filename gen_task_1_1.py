@@ -11,7 +11,7 @@ from zipfile import ZipFile
 if __name__ == "__main__":
     
     user = Config("user.json")
-    task = Config("p1_1.json")
+    task = Config("tasks/p1_1.json")
     
     workdir = f"{user.name}-{user.group}-{task.no}"
     file_prefix = f"{user.name}-{user.group}"
