@@ -15,7 +15,7 @@ if __name__ == "__main__":
     
     workdir = f"{user.name}-{user.group}-{task.no}"
     file_prefix = f"{user.name}-{user.group}"
-    archive_name = f"{workdir}/{file_prefix}-p1_1.zip"
+    archive_name = f"{workdir}/{file_prefix}-{task.no}.zip"
     email_topic = f"{user.university}-{user.group}-{task.no}"
     
     if isdir(workdir): rmtree(workdir)
