@@ -15,16 +15,30 @@ if __name__ == "__main__":
     
     workdir = f"{user.name}-{user.group}-{task.no}"
     file_prefix = f"{user.name}-{user.group}"
-    archive_name = f"{workdir}/{file_prefix}-p1_1.zip"
+    archive_name = f"{workdir}/{file_prefix}-{task.no}.zip"
     email_topic = f"{user.university}-{user.group}-{task.no}"
     crl_filename = f"{user.name}-{user.group}.crl"
     crl_distrib_point = f"URI:http://crl.{user.name}.ru:8080/{crl_filename}"
 
-    with open("temp.conf", "w") as conf:
-        conf.write(f"crlDistributionPoints={crl_distrib_point}\n")
+    files_to_save = [f"{user.name}-{user.group}.crl", f"{file_prefix}.crt", 
+                     f"{file_prefix}-crl-valid.key", f"{file_prefix}-crl-valid.crt",
+                     f"{file_prefix}-crl-revoked.key", f"{file_prefix}-crl-revoked.crt"]
     
     if isdir(workdir): rmtree(workdir)
     mkdir(workdir)
+
+    with open(f"{workdir}/crl.conf", "w") as conf:
+        conf.write(f"authorityKeyIdentifier=keyid,issuer\n")
+        conf.write(f"[ basic_cert ]\n")
+        conf.write(f"crlDistributionPoints={crl_distrib_point}\n")
+        conf.write(f"[ ca ]\n")
+        conf.write(f"default_ca=CA_default\n")
+        conf.write(f"[ CA_default ]\n")
+        conf.write(f"database = {workdir}/index.txt\n")
+        conf.write(f"default_md = sha256\n")
+        conf.write(f"default_crl_days = 30\n")
+
+    with open(f"{workdir}/index.txt", "w"): pass
 
     # Generating RSA-key with aes256 encryption and specified length
     run(["openssl", "genrsa", "-aes256", "-passout", f"pass:{user.name}", "-out", f"{workdir}/{file_prefix}-ca.key", f"{task.ca_keylen}"])
@@ -95,9 +109,44 @@ if __name__ == "__main__":
          "-copy_extensions", "copy",                                                                                                # Copying x509v3 extensions from request to certificate
          "-in", f"{workdir}/{file_prefix}-crl-revoked.csr",                                                                           # Passing request
          "-out", f"{workdir}/{file_prefix}-crl-revoked.crt"])                                                                         # Specifying output path
-
-    # Generating CRL file
+    
+    print(f"\n\n-------Revoking one of certificates-------")
     run(["openssl", "ca", 
-         "-config", "temp.conf",
+         "-config", f"{workdir}/crl.conf", 
+         "-cert", f"{workdir}/{file_prefix}-intr.crt", "-keyfile", f"{workdir}/{file_prefix}-intr.key", "-passin", f"pass:{user.name}",
+         "-revoke", f"{workdir}/{file_prefix}-crl-revoked.crt"])
+    
+    run(["openssl", "ca", 
+         "-config", f"{workdir}/crl.conf",
+         "-cert", f"{workdir}/{file_prefix}-intr.crt", "-keyfile", f"{workdir}/{file_prefix}-intr.key", "-passin", f"pass:{user.name}",
          "-gencrl",
-         "-out", crl_filename])
+         "-out", f"{workdir}/{crl_filename}"])
+    
+    print(f"\n\n-------Generating certificate chain-------")
+    with open(f"{workdir}/{file_prefix}.crt", "w") as chain:
+        with open(f"{workdir}/{file_prefix}-intr.crt", "r") as intr:
+            chain.write(intr.read())
+        with open(f"{workdir}/{file_prefix}-ca.crt", "r") as ca:
+            chain.write(ca.read())
+    if isfile(f"{workdir}/{file_prefix}.crt"):
+        print(f"Generated certificate chain: {workdir}/{file_prefix}.crt")
+
+    print(f"\n\n-------Testing valid and revoked certificates-------")
+    run(["openssl", "verify", "-crl_check", "-CRLfile", f"{workdir}/{crl_filename}", 
+         "-CAfile", f"{workdir}/{file_prefix}.crt", 
+         f"{workdir}/{file_prefix}-crl-valid.crt"])
+    run(["openssl", "verify", "-crl_check", "-CRLfile", f"{workdir}/{crl_filename}", 
+         "-CAfile", f"{workdir}/{file_prefix}.crt", 
+         f"{workdir}/{file_prefix}-crl-revoked.crt"])
+
+    # Generating archive with solution
+    with ZipFile(archive_name, "w") as archive:
+        for directory, _, files in walk(workdir):
+            for file in files:
+                if file in files_to_save:
+                    archive.write(f"{directory}/{file}", arcname=file)
+
+    if isfile(archive_name):
+        print(f"Results saved in \x1b[1;4m{archive_name}\x1b[0m. To pass HW, send this archive to \x1b[1;4minsecon@ispras.ru\x1b[0m with topic \x1b[1;4m{email_topic}\x1b[0m.")
+    else:
+        print("Something gone wrong!")
