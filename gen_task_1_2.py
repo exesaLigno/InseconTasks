@@ -20,7 +20,7 @@ if __name__ == "__main__":
     crl_filename = f"{user.name}-{user.group}.crl"
     crl_distrib_point = f"URI:http://crl.{user.name}.ru:8080/{crl_filename}"
 
-    files_to_save = [f"{user.name}-{user.group}.crl", f"{file_prefix}.crt", 
+    files_to_save = [f"{user.name}-{user.group}.crl", f"{file_prefix}-chain.crt", 
                      f"{file_prefix}-crl-valid.key", f"{file_prefix}-crl-valid.crt",
                      f"{file_prefix}-crl-revoked.key", f"{file_prefix}-crl-revoked.crt"]
     
@@ -123,20 +123,20 @@ if __name__ == "__main__":
          "-out", f"{workdir}/{crl_filename}"])
     
     print(f"\n\n-------Generating certificate chain-------")
-    with open(f"{workdir}/{file_prefix}.crt", "w") as chain:
-        with open(f"{workdir}/{file_prefix}-intr.crt", "r") as intr:
-            chain.write(intr.read())
+    with open(f"{workdir}/{file_prefix}-chain.crt", "w") as chain:
         with open(f"{workdir}/{file_prefix}-ca.crt", "r") as ca:
             chain.write(ca.read())
-    if isfile(f"{workdir}/{file_prefix}.crt"):
-        print(f"Generated certificate chain: {workdir}/{file_prefix}.crt")
+        with open(f"{workdir}/{file_prefix}-intr.crt", "r") as intr:
+            chain.write(intr.read())
+    if isfile(f"{workdir}/{file_prefix}-chain.crt"):
+        print(f"Generated certificate chain: {workdir}/{file_prefix}-chain.crt")
 
     print(f"\n\n-------Testing valid and revoked certificates-------")
     run(["openssl", "verify", "-crl_check", "-CRLfile", f"{workdir}/{crl_filename}", 
-         "-CAfile", f"{workdir}/{file_prefix}.crt", 
+         "-CAfile", f"{workdir}/{file_prefix}-chain.crt", 
          f"{workdir}/{file_prefix}-crl-valid.crt"])
     run(["openssl", "verify", "-crl_check", "-CRLfile", f"{workdir}/{crl_filename}", 
-         "-CAfile", f"{workdir}/{file_prefix}.crt", 
+         "-CAfile", f"{workdir}/{file_prefix}-chain.crt", 
          f"{workdir}/{file_prefix}-crl-revoked.crt"])
 
     # Generating archive with solution
