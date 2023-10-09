@@ -27,19 +27,6 @@ if __name__ == "__main__":
     if isdir(workdir): rmtree(workdir)
     mkdir(workdir)
 
-    with open(f"{workdir}/crl.conf", "w") as conf:
-        conf.write(f"authorityKeyIdentifier=keyid,issuer\n")
-        conf.write(f"[ basic_cert ]\n")
-        conf.write(f"crlDistributionPoints={crl_distrib_point}\n")
-        conf.write(f"[ ca ]\n")
-        conf.write(f"default_ca=CA_default\n")
-        conf.write(f"[ CA_default ]\n")
-        conf.write(f"database = {workdir}/index.txt\n")
-        conf.write(f"default_md = sha256\n")
-        conf.write(f"default_crl_days = 30\n")
-
-    with open(f"{workdir}/index.txt", "w"): pass
-
     # Generating RSA-key with aes256 encryption and specified length
     run(["openssl", "genrsa", "-aes256", "-passout", f"pass:{user.name}", "-out", f"{workdir}/{file_prefix}-ca.key", f"{task.ca_keylen}"])
     # Generating self-signed certificate with specified RSA key
@@ -110,6 +97,21 @@ if __name__ == "__main__":
          "-in", f"{workdir}/{file_prefix}-crl-revoked.csr",                                                                           # Passing request
          "-out", f"{workdir}/{file_prefix}-crl-revoked.crt"])                                                                         # Specifying output path
     
+    with open(f"{workdir}/crl.conf", "w") as conf:
+        conf.write(f"[ basic_cert ]\n")
+        conf.write(f"crlDistributionPoints={crl_distrib_point}\n")
+        conf.write(f"[ ca ]\n")
+        conf.write(f"default_ca=CA_default\n")
+        conf.write(f"[ CA_default ]\n")
+        conf.write(f"database = {workdir}/index.txt\n")
+        conf.write(f"default_md = sha256\n")
+        conf.write(f"default_crl_days = 30\n")
+        conf.write(f"crl_extensions = crl_ext\n")
+        conf.write(f"[ crl_ext ]\n")
+        conf.write(f"authorityKeyIdentifier=keyid:always\n")
+
+    with open(f"{workdir}/index.txt", "w"): pass
+
     print(f"\n\n-------Revoking one of certificates-------")
     run(["openssl", "ca", 
          "-config", f"{workdir}/crl.conf", 
