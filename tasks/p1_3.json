@@ -1,0 +1,12 @@
+{
+    "no": "p1_3",
+
+    "ca_keylen": 4096,
+    "ca_time": 1095,
+
+    "intr_keylen": 4096,
+    "intr_time": 365,
+
+    "basic_keylen": 2048,
+    "basic_time": 90
+}
