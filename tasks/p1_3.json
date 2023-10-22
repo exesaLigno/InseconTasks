@@ -8,5 +8,7 @@
     "intr_time": 365,
 
     "basic_keylen": 2048,
-    "basic_time": 90
+    "basic_time": 90,
+
+    "local_adress": "127.0.1.1"
 }
