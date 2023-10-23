@@ -3,7 +3,7 @@
 from base import Config
 
 from subprocess import run, Popen, DEVNULL, check_call
-from os import mkdir, walk, geteuid, remove, listdir, environ
+from os import mkdir, walk, geteuid, remove, listdir, environ, system as simple_run
 from os.path import isdir, isfile, abspath
 from shutil import rmtree, which, copy, move
 from zipfile import ZipFile
@@ -14,7 +14,22 @@ def reboot_ifaces():
         run(['ifconfig', iface, 'up'])
         print(f'{iface} rebooted')
 
+def run_without_sudo(prompt):
+    path_list = __file__.split('/')
+    username = path_list[path_list.index('home') + 1]
+    simple_run(f"sudo -u {username} {prompt}")
+
 if __name__ == "__main__":
+
+    if which("nginx") == None:
+        print(f"NGINX is needed for this task, install it with your packet manager")
+        print(f"e.g. \x1b[1mpacman -S nginx\x1b[0m for Arch")
+        print(f"e.g. \x1b[1mapt-get install nginx\x1b[0m for Debian")
+        exit(1)
+
+    if geteuid() != 0:
+        print("You must run this script as sudoer, exiting...")
+        exit(1)
     
     user = Config("user.json")
     task = Config("tasks/p1_3.json")
@@ -33,16 +48,6 @@ if __name__ == "__main__":
 
     if isdir(workdir): rmtree(workdir)
     mkdir(workdir)
-
-    if which("nginx") == None:
-        print(f"NGINX is needed for this task, install it with your packet manager")
-        print(f"e.g. \x1b[1mpacman -S nginx\x1b[0m for Arch")
-        print(f"e.g. \x1b[1mapt-get install nginx\x1b[0m for Debian")
-        exit(1)
-
-    if geteuid() != 0:
-        print("You must run this script as sudoer, exiting...")
-        exit(1)
 
     ################## Configuration for Certificate revoking ################
     with open(f"{workdir}/ocsp.conf", "w") as conf:
@@ -335,7 +340,23 @@ http {{
          "-cert", f"{workdir}/{file_prefix}-ocsp-revoked.crt"])
     
     ############### Starting process of verification #################
-    _ = input(f"\n\x1b[1;33mPress Enter to stop OCSP Responder, NGINX and restore all settings...\x1b[0m")
+    _ = input(f"""\n\x1b[1;33m------- Now you capturing connection with VALID site -------
+Open Wireshark, start recording of lo:loopback iface, then press Enter to start Firefox. 
+When site will be loaded, close Firefox.
+Save recorded trace as {workdir}/{file_prefix}-ocsp-valid.pcapng then close Wireshark
+Log file will be saved automatically...\x1b[0m""")
+    run_without_sudo(f"SSLKEYLOGFILE=temp.log firefox \"https://ocsp.valid.{user.name}.ru\"")
+    _ = input(f"\n\x1b[1;33mPress Enter if you closed Firefox and saved {workdir}/{file_prefix}-ocsp-valid.pcapng...\x1b[0m")
+    move("temp.log", f"{workdir}/{file_prefix}-ocsp-valid.log")
+
+    _ = input(f"""\n\x1b[1;33m------- Now you capturing connection with REVOKED site -------
+Open Wireshark, start recording of lo:loopback iface, then press Enter to start Firefox. 
+When site will be loaded, close Firefox.
+Save recorded trace as {workdir}/{file_prefix}-ocsp-revoked.pcapng then close Wireshark
+Log file will be saved automatically...\x1b[0m""")
+    run_without_sudo(f"SSLKEYLOGFILE=temp.log firefox \"https://ocsp.revoked.{user.name}.ru\"")
+    _ = input(f"\n\x1b[1;33mPress Enter if you closed Firefox and saved {workdir}/{file_prefix}-ocsp-revoked.pcapng\nScript will restore all settings...\x1b[0m")
+    move("temp.log", f"{workdir}/{file_prefix}-ocsp-revoked.log")
     
     print(f"\n------- Killing OCSP Responder -------")
     responder.kill()
