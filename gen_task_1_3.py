@@ -3,7 +3,7 @@
 from base import Config
 
 from subprocess import run, Popen, DEVNULL, check_call
-from os import mkdir, walk, geteuid, remove, listdir
+from os import mkdir, walk, geteuid, remove, listdir, environ
 from os.path import isdir, isfile, abspath
 from shutil import rmtree, which, copy, move
 from zipfile import ZipFile
@@ -188,6 +188,26 @@ if __name__ == "__main__":
          "-config", f"{workdir}/ocsp.conf", 
          "-cert", f"{workdir}/{file_prefix}-intr.crt", "-keyfile", f"{workdir}/{file_prefix}-intr.key", "-passin", f"pass:{user.name}",
          "-valid", f"{workdir}/{file_prefix}-ocsp-valid.crt"])
+    
+    ################### Generating Valid Chain #########################
+    print(f"\n------- Generating Valid chain -------")
+    with open(f"{workdir}/{file_prefix}-ocsp-valid-chain.crt", "w") as valid_chain:
+        with open(f"{workdir}/{file_prefix}-ocsp-valid.crt", "r") as ocsp_valid:
+            valid_chain.write(ocsp_valid.read())
+        with open(f"{workdir}/{file_prefix}-chain.crt", "r") as chain:
+            valid_chain.write(chain.read())
+    if isfile(f"{workdir}/{file_prefix}-ocsp-valid-chain.crt"):
+        print(f"Generated certificate chain: {workdir}/{file_prefix}-ocsp-valid-chain.crt")
+
+    ################### Generating Revoked Chain #########################
+    print(f"\n------- Generating Revoked chain -------")
+    with open(f"{workdir}/{file_prefix}-ocsp-revoked-chain.crt", "w") as revoked_chain:
+        with open(f"{workdir}/{file_prefix}-ocsp-revoked.crt", "r") as ocsp_revoked:
+            revoked_chain.write(ocsp_revoked.read())
+        with open(f"{workdir}/{file_prefix}-chain.crt", "r") as chain:
+            revoked_chain.write(chain.read())
+    if isfile(f"{workdir}/{file_prefix}-ocsp-revoked-chain.crt"):
+        print(f"Generated certificate chain: {workdir}/{file_prefix}-ocsp-revoked-chain.crt")
 
     ################# Creating test sites for valid and revoked certs ################
     try: mkdir("/var/www")
@@ -220,11 +240,11 @@ if __name__ == "__main__":
 
     valid_site_path = f"/var/www/{file_prefix}-valid"
     valid_key_path = abspath(f"{workdir}/{file_prefix}-ocsp-valid.key")
-    valid_cert_path = abspath(f"{workdir}/{file_prefix}-ocsp-valid.crt")
+    valid_cert_path = abspath(f"{workdir}/{file_prefix}-ocsp-valid-chain.crt")
 
     revoked_site_path = f"/var/www/{file_prefix}-revoked"
     revoked_key_path = abspath(f"{workdir}/{file_prefix}-ocsp-revoked.key")
-    revoked_cert_path = abspath(f"{workdir}/{file_prefix}-ocsp-revoked.crt")
+    revoked_cert_path = abspath(f"{workdir}/{file_prefix}-ocsp-revoked-chain.crt")
 
     with open(f"/etc/nginx/nginx.conf", "w") as nginx_conf:
         nginx_conf.write(f"""
@@ -258,9 +278,10 @@ http {{
         ssl_session_timeout  5m;
         ssl_ciphers  HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers  on;
-        ssl_stapling on;
-        ssl_stapling_verify on;
-        ssl_trusted_certificate {chain_path};
+        # ssl_stapling on;
+        # ssl_stapling_verify on;
+        # ssl_trusted_certificate {chain_path};
+        ssl_ocsp on;
         charset UTF-8;
         location / {{
             root   {valid_site_path};
@@ -277,9 +298,10 @@ http {{
         ssl_session_timeout  5m;
         ssl_ciphers  HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers  on;
-        ssl_stapling on;
-        ssl_stapling_verify on;
-        ssl_trusted_certificate {chain_path};
+        # ssl_stapling on;
+        # ssl_stapling_verify on;
+        # ssl_trusted_certificate {chain_path};
+        ssl_ocsp on;
         charset UTF-8;
         location / {{
             root   {revoked_site_path};
